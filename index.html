@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetCfg-AI — Cisco IOS configuration workbench</title>
+<script>document.documentElement.dataset.theme=localStorage.getItem('netcfg.theme')||(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark')</script>
+<style>
+:root{--mono:"JetBrains Mono","JetBrainsMono Nerd Font","IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:"Inter","IBM Plex Sans","Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+/* warm graphite + copper accent; status: steel = pass, brass = warning, crimson = error (always with icon + label) */
+[data-theme=dark]{color-scheme:dark;--bg:#131211;--dots:rgba(237,230,219,.045);--panel:#1b1917;--panel2:#221f1c;--raise:#2b2724;--line:#35302b;--line2:#4b443c;--text:#ede6db;--text2:#d6cdbf;--muted:#a59c8f;--faint:#7b7266;--accent:#e2793f;--accent-ink:#1d0f06;--accent-soft:rgba(226,121,63,.15);--ok:#4fa9dd;--ok-soft:rgba(79,169,221,.14);--warn:#d4a83c;--warn-soft:rgba(212,168,60,.15);--err:#ee5470;--err-soft:rgba(238,84,112,.14);--code:#161412;--ip:#d9c29c;--shadow:0 1px 0 rgba(255,255,255,.035) inset,0 16px 36px -20px rgba(0,0,0,.75)}
+[data-theme=light]{color-scheme:light;--bg:#f2ede4;--dots:rgba(30,27,23,.07);--panel:#fbf8f3;--panel2:#f4efe7;--raise:#ebe4d8;--line:#ddd4c6;--line2:#c8bcaa;--text:#1e1b17;--text2:#3b352d;--muted:#655c51;--faint:#91867a;--accent:#b4532a;--accent-ink:#fff8f2;--accent-soft:rgba(180,83,42,.11);--ok:#1d6c9c;--ok-soft:rgba(29,108,156,.11);--warn:#946a0e;--warn-soft:rgba(148,106,14,.12);--err:#b8334f;--err-soft:rgba(184,51,79,.10);--code:#fffdf9;--ip:#7b5a2e;--shadow:0 1px 2px rgba(60,40,20,.06),0 14px 30px -18px rgba(60,40,20,.28)}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:14.5px/1.55 var(--sans);display:grid;grid-template-rows:auto 1fr;grid-template-columns:minmax(0,1fr);height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased}
+::selection{background:var(--accent-soft)}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code,.mono{font-family:var(--mono)}
+.label{font:600 10.5px/1.2 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+.muted{color:var(--muted)}
+.spacer{flex:1}
+[hidden]{display:none!important}
+
+/* header */
+header{display:flex;align-items:center;gap:14px;padding:10px 18px;min-width:0;border-bottom:1px solid var(--line);background:var(--panel);position:relative;z-index:30}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{flex:none}
+.brand b{font:700 15px/1 var(--mono);letter-spacing:-.02em;white-space:nowrap}
+.brand b em{font-style:normal;color:var(--accent)}
+.brand span{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:10px;border-left:1px solid var(--line)}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px;flex:none}
+.seg button{border:0;background:none;padding:4px 12px;border-radius:6px;color:var(--muted);font-size:13px;white-space:nowrap}
+.seg button:hover{color:var(--text)}
+.seg button[aria-pressed=true]{background:var(--raise);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;font:11.5px var(--mono);color:var(--muted);white-space:nowrap}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.pill.live i{background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.icon-btn{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);flex:none}
+.icon-btn:hover{color:var(--text);border-color:var(--line2)}
+.only-narrow{display:none}
+
+/* shell */
+.shell{display:grid;grid-template-columns:268px minmax(0,1fr);min-height:0}
+aside{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.side-head{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px}
+.link{background:none;border:0;color:var(--muted);font-size:12.5px;padding:2px 4px;border-radius:5px}
+.link:hover{color:var(--accent)}
+#hist{list-style:none;margin:0;padding:4px 8px 12px;overflow-y:auto;flex:1}
+#hist li button{width:100%;text-align:left;display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:start;background:none;border:1px solid transparent;border-radius:9px;padding:8px}
+#hist li button:hover{background:var(--panel2);border-color:var(--line)}
+#hist .sc{font:700 13px/1.4 var(--mono);display:inline-flex;align-items:center;gap:4px;grid-row:span 2}
+#hist .t{font-size:13px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:var(--text2)}
+#hist .m{font:11px var(--mono);color:var(--faint)}
+.empty-hist{padding:6px 16px;color:var(--faint);font-size:13px}
+.side-foot{border-top:1px solid var(--line);padding:12px 16px 14px;display:grid;gap:6px;font-size:12px;color:var(--muted)}
+kbd{font:10.5px/1.5 var(--mono);border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;padding:0 4px;color:var(--muted);background:var(--panel2)}
+main{display:flex;flex-direction:column;min-height:0;min-width:0;background-color:var(--bg);background-image:radial-gradient(var(--dots) 1px,transparent 1.2px);background-size:22px 22px}
+#thread{flex:1;overflow-y:auto;padding:26px 28px 40px;scroll-behavior:smooth}
+.wrap{max-width:1080px;margin:0 auto}
+
+/* composer */
+.composer{border-top:1px solid var(--line);background:var(--panel);padding:12px 28px 14px}
+.box{max-width:1080px;margin:0 auto;border:1px solid var(--line2);border-radius:12px;background:var(--bg);transition:border-color .15s,box-shadow .15s}
+.box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.box.drop{border-style:dashed;border-color:var(--accent)}
+.box textarea{display:block;width:100%;border:0;background:none;resize:none;padding:12px 14px 4px;outline:none;max-height:38vh;line-height:1.5}
+.box textarea.code{font:12.5px/1.5 var(--mono)}
+.box textarea::placeholder{color:var(--faint)}
+.bar{display:flex;align-items:center;gap:8px;padding:6px 8px 8px 10px;flex-wrap:wrap}
+.opts{display:none;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:10px 12px 4px;border-top:1px dashed var(--line);margin-top:6px}
+.opts.open{display:grid}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field input,.field select{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:13px;min-width:0}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.primary{background:var(--accent);color:var(--accent-ink);border:0;border-radius:9px;padding:8px 16px;font-weight:650;display:inline-flex;gap:8px;align-items:center;white-space:nowrap}
+.primary:hover{filter:brightness(1.06)}
+.primary:disabled{opacity:.55;cursor:progress}
+.ghost{background:none;border:1px solid var(--line);border-radius:8px;padding:5px 10px;color:var(--muted);font-size:13px;display:inline-flex;gap:6px;align-items:center;white-space:nowrap}
+.ghost:hover{color:var(--text);border-color:var(--line2)}
+.ghost[aria-pressed=true]{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.ghost svg,.primary svg{flex:none}
+.check{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap}
+input[type=checkbox]{accent-color:var(--accent);margin:0}
+.hint{font-size:12px;color:var(--faint);display:inline-flex;gap:4px;align-items:center}
+body[data-mode=audit] [data-show=generate],body[data-mode=generate] [data-show=audit]{display:none!important}
+
+/* thread */
+.msg-user{margin:24px 0 10px auto;max-width:78%;width:fit-content;background:var(--raise);border:1px solid var(--line2);border-radius:14px 14px 3px 14px;padding:9px 14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg-user .opt{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.msg-user pre{margin:6px 0 0;font:11.5px/1.45 var(--mono);color:var(--muted);max-height:120px;overflow:hidden;-webkit-mask-image:linear-gradient(#000 60%,transparent)}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:1px 8px;border-radius:6px;font:11.5px/1.7 var(--mono);background:var(--panel2);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.on{color:var(--text);border-color:var(--line2);background:var(--raise)}
+.tag.acc{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:var(--accent-soft)}
+.tag.off{opacity:.55;text-decoration:line-through}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin:10px 0 28px;overflow:hidden}
+.card.flash{animation:flash 1.2s ease}
+@keyframes flash{0%{box-shadow:0 0 0 3px var(--accent-soft),var(--shadow)}100%{box-shadow:var(--shadow)}}
+
+/* welcome */
+.welcome{padding:26px 28px 24px;position:relative}
+.welcome h2{font:700 24px/1.25 var(--sans);letter-spacing:-.02em;margin:10px 0 8px;max-width:640px}
+.welcome p{margin:0 0 18px;color:var(--muted);max-width:680px}
+.pipe{display:flex;flex-wrap:wrap;gap:0;margin:0 0 20px;font:12px var(--mono)}
+.pipe span{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border:1px solid var(--line);background:var(--panel2);color:var(--text2)}
+.pipe span:first-child{border-radius:8px 0 0 8px}.pipe span:last-child{border-radius:0 8px 8px 0}
+.pipe span+span{border-left:0}
+.pipe b{color:var(--accent);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--panel2);color:var(--text2);padding:7px 12px;border-radius:10px;font-size:13px;text-align:left;max-width:100%}
+.chip:hover{border-color:var(--accent);color:var(--text)}
+.feats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:22px;padding-top:18px;border-top:1px dashed var(--line)}
+.feats div{font-size:13px;color:var(--muted)}
+.feats b{display:block;color:var(--text);font-size:13.5px;margin-bottom:2px}
+
+/* loading + error */
+.loading{padding:18px 20px;display:flex;align-items:center;gap:14px}
+.steps{display:flex;gap:6px;flex-wrap:wrap}
+.steps span{font:12px var(--mono);padding:3px 9px;border-radius:6px;border:1px solid var(--line);color:var(--faint);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{color:var(--faint);border-color:var(--line)}40%{color:var(--accent);border-color:var(--accent)}}
+.errcard{padding:14px 18px;display:flex;gap:10px;align-items:flex-start;border-color:color-mix(in srgb,var(--err) 45%,var(--line));color:var(--text)}
+.errcard .ic{color:var(--err);margin-top:2px}
+
+/* status */
+.ic{display:inline-flex;flex:none}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.err{color:var(--err)}.info{color:var(--faint)}
+
+/* summary */
+.summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:22px;padding:18px 22px;align-items:center}
+.gauge{display:grid;justify-items:center;gap:6px}
+.ring{position:relative;width:96px;height:96px}
+.ring svg{transform:rotate(-90deg);display:block}
+.ring circle{fill:none;stroke-width:8}
+.ring .fill{stroke-linecap:round;transition:stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1)}
+.ring .v{position:absolute;inset:0;display:grid;place-content:center;text-align:center;line-height:1}
+.ring .v b{font:700 31px/1 var(--sans);letter-spacing:-.03em}
+.ring .v small{font:10.5px var(--mono);color:var(--faint);margin-top:3px}
+.state{display:inline-flex;align-items:center;gap:5px;font:600 11px var(--mono);letter-spacing:.04em;text-transform:uppercase}
+.sum-mid{min-width:0;display:grid;gap:9px}
+.sum-mid .feat{display:flex;flex-wrap:wrap;gap:6px}
+.timeline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font:12px var(--mono)}
+.timeline .st{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:7px;border:1px solid var(--line);background:var(--panel2)}
+.timeline .st small{color:var(--faint);font-size:11px}
+.timeline .st b{font-weight:700}
+.timeline .arr{color:var(--faint)}
+.cats{display:flex;gap:6px;flex-wrap:wrap}
+.cat{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;padding:2px 10px 2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--text2)}
+.cat small{font:11px var(--mono);color:var(--muted)}
+.sum-side{display:grid;gap:10px;justify-items:end;align-content:center}
+.stats{display:grid;grid-template-columns:auto auto;gap:2px 14px;font:12px var(--mono);color:var(--muted);text-align:right}
+.stats b{color:var(--text);font-weight:600}
+.acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.faultnote{font-size:12.5px;color:var(--muted);border-left:2px solid var(--warn);padding:2px 0 2px 10px}
+
+/* tabs */
+.tabs{display:flex;gap:2px;padding:0 14px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--panel2);overflow-x:auto;scrollbar-width:thin}
+.tabs button{border:0;background:none;padding:11px 12px 9px;color:var(--muted);font-size:13.5px;border-bottom:2px solid transparent;white-space:nowrap;display:inline-flex;gap:7px;align-items:center}
+.tabs button:hover{color:var(--text)}
+.tabs button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent)}
+.tabs .n{font:11px/1.5 var(--mono);color:var(--muted);background:var(--raise);border-radius:5px;padding:0 6px}
+.panel{padding:16px 20px 20px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.toolbar .seg button{font-size:12.5px}
+.secret{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:0 4px 0 9px;font-size:12.5px;color:var(--muted)}
+.secret input{border:0;background:none;padding:5px 4px;width:150px;outline:none;font:12px var(--mono);color:var(--text)}
+.secret:focus-within{border-color:var(--accent)}
+details.menu{position:relative}
+details.menu summary{list-style:none}
+details.menu summary::-webkit-details-marker{display:none}
+details.menu .items{position:absolute;right:0;top:calc(100% + 6px);z-index:5;background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:5px;min-width:200px;box-shadow:var(--shadow)}
+details.menu .items button{display:flex;justify-content:space-between;gap:16px;width:100%;background:none;border:0;padding:7px 10px;border-radius:7px;font-size:13px;text-align:left;color:var(--text2)}
+details.menu .items button:hover{background:var(--panel2);color:var(--text)}
+details.menu .items small{font:11px var(--mono);color:var(--faint)}
+
+/* code view */
+.code{background:var(--code);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.code .scroll{max-height:540px;overflow:auto;padding:6px 0}
+.ln{display:grid;grid-template-columns:46px 54px minmax(0,1fr);font:12.5px/1.7 var(--mono);cursor:pointer;color:var(--text2)}
+.ln.d{grid-template-columns:40px 40px 22px minmax(0,1fr)}
+.ln:hover{background:var(--panel2)}
+.ln.sel{background:var(--accent-soft)}
+.ln .no{color:var(--faint);text-align:right;padding-right:10px;user-select:none;border-right:1px solid var(--line)}
+.ln.d .no+.no{border-left:0}
+.ln .src{color:var(--faint);font-size:9.5px;letter-spacing:.05em;padding-left:9px;user-select:none;align-self:center;white-space:nowrap;overflow:hidden}
+.ln .mk{text-align:center;user-select:none;font-weight:700}
+.ln .tx{white-space:pre;padding:0 16px 0 10px}
+.ln.hd .tx{color:var(--text);font-weight:600}
+.ln.cm .tx{color:var(--faint)}
+.tx .ip{color:var(--ip)}
+.tx .ph{color:var(--warn);background:var(--warn-soft);border-radius:3px;box-shadow:0 0 0 1px color-mix(in srgb,var(--warn) 40%,transparent)}
+.ln.i-err{background:var(--err-soft);box-shadow:inset 3px 0 var(--err)}
+.ln.i-warn{background:var(--warn-soft);box-shadow:inset 3px 0 var(--warn)}
+.ln.i-info{box-shadow:inset 3px 0 var(--line2)}
+.ln.add{background:var(--ok-soft)}.ln.add .mk{color:var(--ok)}
+.ln.del{background:var(--err-soft)}.ln.del .mk{color:var(--err)}
+.ln.del .tx{text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--err) 60%,transparent);color:var(--muted)}
+.ln.flash{animation:lnflash 1.6s ease}
+@keyframes lnflash{0%,40%{background:var(--accent-soft);box-shadow:inset 3px 0 var(--accent)}}
+.fold{display:block;width:100%;text-align:left;border:0;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line);background:var(--panel2);color:var(--muted);font:11.5px/2 var(--mono);padding:0 0 0 104px}
+.fold:hover{color:var(--accent)}
+.inspector{border-top:1px solid var(--line);padding:10px 14px 11px;background:var(--panel2);font-size:13px;min-height:58px;display:grid;gap:4px}
+.inspector .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inspector .why{color:var(--text)}
+.inspector .issue{margin:2px 0 0}
+
+/* tables */
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);white-space:nowrap}
+td{border-bottom:1px solid var(--line);padding:7px 10px;vertical-align:top}
+td code{font-size:12.5px;color:var(--text)}
+tr:hover td{background:var(--panel2)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lnk{background:none;border:0;padding:0;font:12px var(--mono);color:var(--accent);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--accent) 35%,transparent);text-underline-offset:2px}
+.src-pill{font:11px var(--mono);color:var(--muted);white-space:nowrap}
+.filter{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--panel2);color:var(--faint);min-width:min(340px,100%)}
+.filter input{border:0;background:none;outline:none;padding:7px 0;flex:1;font-size:13px;color:var(--text)}
+.filter:focus-within{border-color:var(--accent)}
+
+/* validation */
+.catgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:18px}
+.catcell{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel2);display:grid;gap:3px}
+.catcell .h{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
+.catcell .c{font:12px var(--mono);color:var(--muted)}
+h4{font:600 10.5px var(--mono);letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+h4:first-child{margin-top:0}
+.issue{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:2px 10px;align-items:start;padding:8px 12px;border-radius:9px;margin:6px 0;background:var(--panel2);border:1px solid var(--line);font-size:13px}
+.issue .ic{margin-top:2px}
+.issue .msg b{font:600 11px var(--mono);letter-spacing:.05em;margin-right:6px}
+.issue .msg code{font-size:11.5px;color:var(--muted);margin-right:6px}
+.issue .fix{grid-column:2;color:var(--muted);font-size:12.5px}
+.issue.resolved{opacity:.78}
+.issue.resolved .msg{text-decoration:line-through;text-decoration-color:var(--faint)}
+.issue.good{border-color:color-mix(in srgb,var(--ok) 35%,var(--line));background:var(--ok-soft)}
+.badge{font:600 10px/1.6 var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:0 6px;border-radius:5px;border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+.badge.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.repairs{display:grid;gap:6px}
+.repair{display:grid;grid-template-columns:62px auto minmax(0,1fr);gap:10px;align-items:baseline;font-size:13px;padding:6px 10px;border-left:2px solid var(--ok);background:var(--panel2);border-radius:0 8px 8px 0}
+.repair .p{font:11px var(--mono);color:var(--faint)}
+.repair code{font-size:11.5px;color:var(--ok)}
+details.more summary{cursor:pointer;color:var(--muted);font-size:13px;margin:14px 0 6px}
+
+/* verify */
+.meter{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.meter .track{flex:1;height:8px;border-radius:4px;background:var(--accent-soft);overflow:hidden;max-width:420px}
+.meter .fillbar{height:100%;border-radius:4px;background:var(--accent);transition:width .3s}
+.vitem{display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 12px;padding:8px 10px;border-radius:9px;align-items:start;cursor:pointer}
+.vitem:hover{background:var(--panel2)}
+.vitem input{margin-top:4px}
+.vitem code{font-size:12.5px;color:var(--text)}
+.vitem span{grid-column:2;color:var(--muted);font-size:13px}
+.vitem.done code{text-decoration:line-through;text-decoration-color:var(--faint);color:var(--muted)}
+.vgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 24px}
+
+/* sources */
+.kbrow{display:grid;grid-template-columns:70px minmax(0,1fr) 46px;gap:5px 12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.kbrow .tt{grid-column:2/4}
+.kbrow .rel{grid-column:2}
+.kbrow .id{font:12px var(--mono);color:var(--accent)}
+.kbrow .rel{height:8px;border-radius:4px;background:var(--accent-soft);overflow:hidden}
+.kbrow .rel i{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
+.kbrow .v{font:12px var(--mono);color:var(--muted);text-align:right}
+.notes{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
+.trace{display:flex;flex-wrap:wrap;gap:6px}
+.cols{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:8px 30px;margin-top:20px}
+.tablewrap{overflow-x:auto}
+
+/* topology */
+.topo-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--code);padding:8px 0}
+.topo{display:block;margin:0 auto}
+.topo text{font-family:var(--mono);fill:var(--text2);font-size:11.5px}
+.topo .t-strong{fill:var(--text);font-weight:700;font-size:13px}
+.topo .t-faint{fill:var(--faint);font-size:10.5px}
+.topo .t-acc{fill:var(--accent)}
+.topo .box{fill:var(--panel2);stroke:var(--line2);stroke-width:1}
+.topo .dev{fill:var(--raise);stroke:var(--accent);stroke-width:1.5}
+.topo .cloud{fill:var(--panel);stroke:var(--line2);stroke-dasharray:4 3}
+.topo .wire{stroke:var(--line2);stroke-width:1.5;fill:none}
+.topo .wire.acc{stroke:var(--accent);stroke-width:2}
+.topo .bdg{fill:var(--raise);stroke:var(--line);stroke-width:1}
+.topo .bdg.acc{fill:var(--accent-soft);stroke:none}
+.caption{font-size:12.5px;color:var(--faint);margin-top:10px}
+.emptyp{color:var(--muted);padding:18px 4px}
+
+@media (max-width:1100px){.feats{grid-template-columns:1fr 1fr}.catgrid{grid-template-columns:repeat(3,minmax(0,1fr))}.cols{grid-template-columns:1fr}}
+@media (max-width:920px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  aside{position:fixed;left:0;top:53px;bottom:0;width:286px;transform:translateX(-102%);transition:transform .2s;z-index:25;box-shadow:var(--shadow)}
+  body.side-open aside{transform:none}
+  .only-narrow{display:inline-grid}
+  .brand span,#backend{display:none}
+  .summary{grid-template-columns:auto minmax(0,1fr)}
+  .sum-side{grid-column:1/-1;justify-items:start}
+  .stats{text-align:left}
+  .opts{grid-template-columns:1fr 1fr}
+  #thread{padding:16px 14px 30px}
+  .composer{padding:10px 12px}
+  .vgrid{grid-template-columns:1fr}
+}
+@media (max-width:520px){.brand b,.hint{display:none}header{gap:10px;padding:10px 12px}.seg button{padding:4px 9px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body data-mode="generate">
+<header>
+  <button class="icon-btn only-narrow" id="sideBtn" aria-label="Show history"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+  <div class="brand">
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" style="fill:var(--accent)"/><path d="M8 19L14 9L20 19Z" fill="none" style="stroke:var(--accent-ink)" stroke-width="1.7" stroke-linejoin="round"/><g style="fill:var(--accent-ink)"><circle cx="14" cy="9" r="2.7"/><circle cx="8" cy="19" r="2.7"/><circle cx="20" cy="19" r="2.7"/></g></svg>
+    <b>NetCfg<em>-AI</em></b>
+    <span>Natural language &rarr; validated Cisco IOS</span>
+  </div>
+  <div class="seg" role="group" aria-label="Mode">
+    <button type="button" data-mode="generate" aria-pressed="true">Generate</button>
+    <button type="button" data-mode="audit" aria-pressed="false">Audit config</button>
+  </div>
+  <div class="spacer"></div>
+  <span class="pill" id="backend" title="Intent extraction backend"><i></i><span>connecting…</span></span>
+  <button class="icon-btn" id="themeBtn" aria-label="Toggle light/dark theme" title="Toggle theme"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg></button>
+</header>
+<div class="shell">
+  <aside id="side" aria-label="History">
+    <div class="side-head"><span class="label">History</span><button class="link" id="clearHist" type="button">Clear</button></div>
+    <ol id="hist"></ol>
+    <div class="side-foot">
+      <span class="label">Shortcuts</span>
+      <div><kbd>Enter</kbd> run &middot; <kbd>Shift</kbd>+<kbd>Enter</kbd> new line</div>
+      <div><kbd>Ctrl</kbd>+<kbd>Enter</kbd> run an audit</div>
+      <div><kbd>/</kbd> focus prompt &middot; <kbd>Esc</kbd> close options</div>
+    </div>
+  </aside>
+  <main>
+    <div id="thread"><div class="wrap" id="feed"></div></div>
+    <form class="composer" id="f" autocomplete="off">
+      <div class="box" id="box">
+        <textarea id="q" rows="1" spellcheck="false" aria-label="Requirement"></textarea>
+        <div class="opts" id="opts" data-show="generate">
+          <label class="field"><span class="label">Device</span><select id="o-device"><option value="">Auto-detect</option><option value="router">Router (router-on-a-stick)</option><option value="l3switch">Layer-3 switch (SVIs)</option></select></label>
+          <label class="field"><span class="label">Hostname</span><input id="o-hostname" placeholder="from request"></label>
+          <label class="field"><span class="label">Base network</span><input id="o-base" placeholder="192.168.0.0/16"></label>
+          <label class="field"><span class="label">DNS servers</span><input id="o-dns" placeholder="8.8.8.8"></label>
+        </div>
+        <div class="bar">
+          <button type="button" class="ghost" id="optBtn" aria-pressed="false" aria-controls="opts" data-show="generate"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M2 4.5h7M12 4.5h2M2 11.5h2M7 11.5h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="10.5" cy="4.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="5.5" cy="11.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Options</button>
+          <label class="check" data-show="generate" title="Simulate a faulty LLM draft (missing globals, Telnet, wrong DHCP gateway, OSPF hole) to watch the validator repair it"><input type="checkbox" id="fault"> Inject faulty draft</label>
+          <button type="button" class="ghost" id="fileBtn" data-show="audit"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M8 10.5V2.5M5 5.5l3-3 3 3M3 10v3.5h10V10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Load file</button>
+          <input type="file" id="file" accept=".txt,.cfg,.conf,.log,text/plain" hidden>
+          <button type="button" class="ghost" id="sampleBtn" data-show="audit">Insecure sample</button>
+          <label class="check" data-show="audit" title="Run the repair loop on the pasted config"><input type="checkbox" id="autorepair" checked> Auto-repair</label>
+          <span class="spacer"></span>
+          <span class="hint" data-show="generate"><kbd>Enter</kbd></span>
+          <span class="hint" data-show="audit"><kbd>Ctrl</kbd>+<kbd>Enter</kbd></span>
+          <button class="primary" id="go" type="submit"><span>Generate</span><svg width="14" height="14" viewBox="0 0 16 16"><path d="M3 8h9M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+    </form>
+  </main>
+</div>
+<script>
+const EX=[
+ "I need VLAN + DHCP + OSPF",
+ "3 VLANs (sales 120 hosts, hr 40 hosts, guest 25 hosts) with DHCP, OSPF, NAT and QoS; block guest",
+ "Layer 3 switch named CORE-SW2 with VLAN 10, 20, 30, DHCP, OSPF area 1 and IPv6",
+ "Branch router with sales and hr, 60 users each, using 10.20.0.0/16, DHCP, NAT, NTP and syslog to 10.99.0.5"
+];
+const SAMPLE=`hostname BRANCH-R1
+!
+no service password-encryption
+enable password cisco123
+username admin password 0 admin123
+!
+ip dhcp excluded-address 192.168.10.1 192.168.10.10
+ip dhcp pool LAN10
+ network 192.168.10.0 255.255.255.0
+ default-router 192.168.10.254
+ dns-server 8.8.8.8
+ip dhcp pool LAN20
+ network 192.168.20.0 255.255.255.0
+ default-router 192.168.20.1
+!
+interface GigabitEthernet0/0
+ no ip address
+ duplex auto
+!
+interface GigabitEthernet0/0.10
+ encapsulation dot1Q 10
+ ip address 192.168.10.1 255.255.255.0
+!
+interface GigabitEthernet0/0.20
+ encapsulation dot1Q 20
+ ip address 192.168.20.1 255.255.255.0
+!
+interface GigabitEthernet0/1
+ description Link to HQ
+ ip address 10.0.0.1 255.255.255.252
+!
+router ospf 1
+ network 192.168.10.0 0.0.0.255 area 0
+ network 10.0.0.0 0.0.0.3 area 0
+!
+ip http server
+snmp-server community public RO
+!
+line con 0
+ exec-timeout 0 0
+line vty 0 4
+ password cisco
+ login
+ transport input telnet ssh
+line vty 5 15
+ no login
+!
+end`;
+const ICON={
+ ok:'<svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 8.2l2 2 4-4.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ warn:'<svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 1.9l6.5 11.6H1.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6.3v3.2M8 11.5v.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+ err:'<svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+ info:'<svg viewBox="0 0 16 16" width="14" height="14"><circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 7.3v4M8 4.8v.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+ copy:'<svg viewBox="0 0 16 16" width="14" height="14"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 3.5V3A1.5 1.5 0 0 0 9 1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+ down:'<svg viewBox="0 0 16 16" width="14" height="14"><path d="M8 2.5v8M5 7.5l3 3 3-3M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+ edit:'<svg viewBox="0 0 16 16" width="14" height="14"><path d="M10.8 2.7l2.5 2.5L6 12.5l-3.2.7.7-3.2z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
+ search:'<svg viewBox="0 0 16 16" width="14" height="14"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
+};
+const $=s=>document.querySelector(s), feed=$('#feed'), thread=$('#thread'), q=$('#q');
+const state={mode:'generate',busy:false,hist:loadHist()};
+
+/* ---------- tiny DOM helpers (all server/user text goes through text nodes, never innerHTML) ---------- */
+function h(tag,a,...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(a||{})){if(v==null||v===false)continue;if(k==='class')e.className=v;else if(k==='html')e.innerHTML=v;else if(k.startsWith('on'))e.addEventListener(k.slice(2),v);else e.setAttribute(k,v===true?'':v)}for(const c of kids.flat(9)){if(c==null||c===false)continue;e.append(c instanceof Node?c:document.createTextNode(String(c)))}return e}
+function s(tag,a,...kids){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const[k,v]of Object.entries(a||{}))if(v!=null)e.setAttribute(k,v);for(const c of kids.flat(9)){if(c==null)continue;e.append(c instanceof Node?c:document.createTextNode(String(c)))}return e}
+const icon=(k,cls)=>h('span',{class:'ic '+(cls||k),html:ICON[k],'aria-hidden':'true'});
+const level=n=>n>=90?'ok':n>=70?'warn':'err';
+const sevOf=i=>i.severity==='ERROR'?'err':i.severity==='WARN'?'warn':'info';
+const SEVL={err:'Error',warn:'Warning',info:'Info'};
+const plural=(n,w)=>n+' '+w+(n===1?'':'s');
+const shortIf=n=>n.replace(/^TenGigabitEthernet/i,'Te').replace(/^GigabitEthernet/i,'Gi').replace(/^FastEthernet/i,'Fa').replace(/^Ethernet/i,'Eth').replace(/^Serial/i,'Se');
+const trunc=(t,n)=>t.length>n?t.slice(0,n-1)+'…':t;
+function ago(ts){const m=Math.round((Date.now()-ts)/60000);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'}
+async function copyText(text,btn){
+  try{await navigator.clipboard.writeText(text)}catch{const t=h('textarea',{style:'position:fixed;opacity:0'});t.value=text;document.body.append(t);t.select();document.execCommand('copy');t.remove()}
+  const sp=btn&&btn.querySelector('span:not(.ic)');if(sp){const o=sp.textContent;sp.textContent='Copied';setTimeout(()=>sp.textContent=o,1200)}
+}
+function download(name,text,type){const a=h('a',{href:URL.createObjectURL(new Blob([text],{type:type||'text/plain'})),download:name});document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},400)}
+const btn=(ic,label,on,cls)=>h('button',{type:'button',class:cls||'ghost',onclick:on},ic?icon(ic,'muted'):null,h('span',null,label));
+
+/* syntax colouring: addresses + placeholder secrets */
+function hl(t){
+  const f=document.createDocumentFragment(),re=/(CHANGE_ME_Str0ng)|((?:\d{1,3}\.){3}\d{1,3}(?:\/\d{1,2})?|\b[0-9A-Fa-f]{1,4}(?::[0-9A-Fa-f]{0,4}){2,7}(?:\/\d{1,3})?)/g;
+  let i=0,m;while((m=re.exec(t))){if(m.index>i)f.append(t.slice(i,m.index));f.append(h('span',{class:m[1]?'ph':'ip'},m[0]));i=re.lastIndex}
+  if(i<t.length)f.append(t.slice(i));return f;
+}
+
+/* ---------- composer ---------- */
+function setMode(m){
+  state.mode=m;document.body.dataset.mode=m;
+  document.querySelectorAll('.seg [data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===m));
+  q.classList.toggle('code',m==='audit');
+  q.placeholder=m==='audit'?'Paste a running-config (show running-config output), drop a .txt file here, or load the insecure sample…':'Describe the network, e.g. "3 VLANs (sales, hr, guest) with DHCP, OSPF and NAT; block guest"';
+  $('#go span').textContent=m==='audit'?'Audit':'Generate';
+  const w=$('#welcome');if(w)w.replaceWith(welcome());
+  autosize();
+}
+function autosize(){q.style.height='auto';const min=state.mode==='audit'?120:0;q.style.height=Math.max(min,Math.min(q.scrollHeight,innerHeight*.38))+'px'}
+function readOpts(){const o={};for(const k of['device','hostname','base','dns']){const v=$('#o-'+k).value.trim();if(v)o[k]=v}return o}
+function busy(b){state.busy=b;$('#go').disabled=b;$('#go span').textContent=b?'Working…':state.mode==='audit'?'Audit':'Generate'}
+function loadSample(){setMode('audit');q.value=SAMPLE;autosize();q.focus()}
+function readFile(file){if(!file)return;if(file.size>512*1024){feed.append(errorCard('File is larger than 512 KB.'));return}const rd=new FileReader();rd.onload=()=>{setMode('audit');q.value=rd.result;autosize();q.focus()};rd.readAsText(file)}
+
+async function submit(){
+  if(state.busy)return;
+  const mode=state.mode,text=q.value;
+  if(!text.trim()){q.focus();$('#box').animate([{transform:'translateX(0)'},{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(0)'}],{duration:220});return}
+  const payload=mode==='generate'?{request:text.trim(),inject_fault:$('#fault').checked,options:readOpts()}:{config:text,repair:$('#autorepair').checked};
+  $('#welcome')?.remove();
+  feed.append(userBubble(mode,payload));
+  const wait=loadingCard(mode);feed.append(wait);wait.scrollIntoView({block:'end'});busy(true);
+  try{
+    const res=await fetch(mode==='generate'?'/api/generate':'/api/audit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const r=await res.json().catch(()=>({error:'Server returned HTTP '+res.status}));
+    wait.remove();
+    if(r.error)feed.append(errorCard(r.error));
+    else{const card=render(r,payload);feed.append(card);addHist(r,payload);q.value='';autosize();card.scrollIntoView({block:'start'})}
+  }catch(err){wait.remove();feed.append(errorCard('Request failed ('+err.message+'). Is app.py still running?'))}
+  busy(false);
+}
+function userBubble(mode,p){
+  if(mode==='audit'){const ls=p.config.replace(/\r/g,'').split('\n');return h('div',{class:'msg-user'},h('span',{class:'label'},'Audit · '+plural(ls.length,'line')+(p.repair?' · auto-repair':'')),h('pre',null,ls.slice(0,7).join('\n')))}
+  const o=Object.entries(p.options||{});
+  return h('div',{class:'msg-user'},p.request,(o.length||p.inject_fault)?h('div',{class:'opt'},o.map(([k,v])=>h('span',{class:'tag'},k+' '+v)),p.inject_fault?h('span',{class:'tag acc'},'fault injection'):null):null);
+}
+function loadingCard(mode){
+  const st=mode==='audit'?['parse','validate','repair','explain']:['intent','retrieve','plan','generate','validate','repair'];
+  return h('div',{class:'card loading'},h('span',{class:'label'},'Running pipeline'),h('div',{class:'steps'},st.map((x,i)=>h('span',{style:'animation-delay:'+(i*.14)+'s'},x))));
+}
+const errorCard=m=>h('div',{class:'card errcard',role:'alert'},icon('err'),h('div',null,m));
+
+function welcome(){
+  const audit=state.mode==='audit';
+  return h('section',{class:'card welcome',id:'welcome'},
+    h('span',{class:'label'},audit?'Audit mode':'Generate mode'),
+    h('h2',null,audit?'Paste a running-config. Get a scored audit and a repaired version.':'Describe the network. Get a validated, explained IOS config.'),
+    h('p',null,audit?'The same validator checks syntax, addressing, routing, services and security, points at the exact line, then proposes deterministic repairs you can review as a diff.':'Your requirement is parsed into intent, grounded in a reference corpus, generated with per-line provenance, checked by a deterministic validator and repaired until it passes.'),
+    h('div',{class:'pipe'},(audit?['parse','validate','repair','explain','verify']:['intent','retrieve','address plan','generate','validate','repair']).map((x,i)=>h('span',null,h('b',null,String(i+1).padStart(2,'0')),x))),
+    audit?h('div',{class:'chips'},h('button',{type:'button',class:'chip',onclick:loadSample},'Load the insecure branch-router sample'),h('button',{type:'button',class:'chip',onclick:()=>$('#file').click()},'Open a config file…'))
+         :h('div',{class:'chips'},EX.map(x=>h('button',{type:'button',class:'chip',onclick:()=>{q.value=x;autosize();submit()}},x))),
+    h('div',{class:'feats'},
+      h('div',null,h('b',null,audit?'Line-level findings':'VLSM addressing'),audit?'Every finding links to its line, with a fix hint and category.':'Give host counts ("sales 120 hosts") and subnets are sized for you.'),
+      h('div',null,h('b',null,'Closed-loop repair'),'Multi-pass fixes for missing globals, Telnet, DHCP gateways, OSPF coverage and more.'),
+      h('div',null,h('b',null,'Prove it works'),'Topology view and a Packet Tracer verification checklist for every result.')));
+}
+
+/* ---------- result card ---------- */
+function render(r,payload){
+  const card=h('article',{class:'card result'});
+  const tabs=[
+    {id:'config',label:'Configuration',fn:configView},
+    {id:'topo',label:'Topology',fn:topoView},
+    {id:'explain',label:'Explained',fn:explainView,n:r.explanations.length},
+    {id:'valid',label:'Validation',fn:validView,n:r.errors+r.warnings||null},
+    {id:'verify',label:'Verify',fn:verifyView,n:r.verify.length},
+    {id:'sources',label:r.mode==='audit'?'Features & sources':'Intent & sources',fn:sourcesView}];
+  const bar=h('div',{class:'tabs',role:'tablist'});
+  const select=id=>{for(const t of tabs){const on=t.id===id;t.btn.setAttribute('aria-selected',on);t.btn.tabIndex=on?0:-1;if(on&&!t.built){t.panel.append(t.fn(r,card));t.built=true}t.panel.hidden=!on}};
+  tabs.forEach((t,i)=>{
+    t.btn=h('button',{type:'button',role:'tab',onclick:()=>select(t.id),onkeydown:e=>{if(e.key==='ArrowRight'||e.key==='ArrowLeft'){const n=tabs[(i+(e.key==='ArrowRight'?1:tabs.length-1))%tabs.length];select(n.id);n.btn.focus()}}},t.label,t.n?h('span',{class:'n'},t.n):null);
+    t.panel=h('div',{class:'panel',role:'tabpanel'});bar.append(t.btn);
+  });
+  card.go=(id,opt)=>{select(id);if(opt&&card.cfg)card.cfg.focus(opt.line,opt.view)};
+  card.append(summary(r,payload,card),bar,...tabs.map(t=>t.panel));
+  select('config');
+  return card;
+}
+function scoreRing(score){
+  const lv=level(score),R=40,C=2*Math.PI*R,fill=s('circle',{class:'fill',cx:48,cy:48,r:R,style:`stroke:var(--${lv})`,'stroke-dasharray':C,'stroke-dashoffset':C});
+  requestAnimationFrame(()=>requestAnimationFrame(()=>fill.setAttribute('stroke-dashoffset',C*(1-score/100))));
+  return h('div',{class:'ring',role:'img','aria-label':'Validation score '+score+' of 100'},s('svg',{width:96,height:96,viewBox:'0 0 96 96'},s('circle',{cx:48,cy:48,r:R,style:`stroke:var(--${lv}-soft)`}),fill),h('div',{class:'v'},h('b',{class:lv},score),h('small',null,'/ 100')));
+}
+function summary(r,payload,card){
+  const it=r.intent,t=r.topology,lv=r.errors?'err':r.warnings?'warn':'ok';
+  const stateLabel={ok:'All checks pass',warn:'Warnings only',err:'Errors remain'}[lv];
+  const feat=[];
+  feat.push(h('span',{class:'tag on'},t.hostname),h('span',{class:'tag'},t.device==='l3switch'?'Layer-3 switch':'Router'));
+  if(it){if(it.vlans.length)feat.push(h('span',{class:'tag'},plural(it.vlans.length,'VLAN')+(it.vlsm?' · VLSM':'')));[['dhcp','DHCP'],['ospf','OSPF'],['acl','ACL'],['nat','NAT'],['qos','QoS'],['ipv6','IPv6'],['ntp','NTP'],['syslog','Syslog']].forEach(([k,l])=>it[k]&&feat.push(h('span',{class:'tag'},l)))}
+  else{if(t.segments.length)feat.push(h('span',{class:'tag'},plural(t.segments.length,'segment')));[['dhcp','DHCP'],['ospf','OSPF'],['acl','ACL'],['nat','NAT'],['qos','QoS'],['ipv6','IPv6'],['ntp','NTP'],['syslog','Syslog']].forEach(([k,l])=>r.features[k]&&feat.push(h('span',{class:'tag'},l)))}
+  const tl=h('div',{class:'timeline'});
+  r.history.forEach((v,i)=>{if(i)tl.append(h('span',{class:'arr'},'→'));tl.append(h('span',{class:'st'},h('small',null,i?'pass '+i:(r.mode==='audit'?'original':'draft')),h('b',{class:level(v)},v)))});
+  tl.append(h('span',{class:'muted',style:'margin-left:4px'},r.history.length>1?'after '+(r.history.length-1)+' repair pass'+(r.history.length>2?'es':''):r.mode==='audit'&&!payload.repair?'repair off':'passed first time'));
+  const cats=h('div',{class:'cats'},r.checks.map(c=>{const k=c.errors?'err':c.warnings?'warn':'ok';return h('span',{class:'cat',title:c.label+': '+plural(c.errors,'error')+', '+plural(c.warnings,'warning')},icon(k),c.label,k==='ok'?null:h('small',null,c.errors?plural(c.errors,'error'):plural(c.warnings,'warning')))}));
+  const ms=r.trace.reduce((a,x)=>a+x.ms,0);
+  const stats=h('div',{class:'stats'},h('span',null,'errors'),h('b',null,r.errors),h('span',null,'warnings'),h('b',null,r.warnings),h('span',null,'lines'),h('b',null,r.lines.length),h('span',null,'time'),h('b',null,ms.toFixed(1)+' ms'));
+  const edit=btn('edit',r.mode==='audit'?'Edit config':'Edit request',()=>{
+    setMode(r.mode);q.value=r.mode==='audit'?payload.config:payload.request;
+    if(r.mode==='generate'){$('#fault').checked=!!payload.inject_fault;for(const k of['device','hostname','base','dns'])$('#o-'+k).value=(payload.options||{})[k]||'';toggleOpts(Object.keys(payload.options||{}).length>0)}
+    else $('#autorepair').checked=payload.repair!==false;
+    autosize();q.focus();
+  });
+  const cp=btn('copy','Copy config',()=>copyText(card.cfg?card.cfg.exportText():r.config,cp));
+  return h('div',{class:'summary'},
+    h('div',{class:'gauge'},scoreRing(r.score),h('span',{class:'state '+lv},icon(lv),stateLabel)),
+    h('div',{class:'sum-mid'},h('div',{class:'feat'},feat),tl,cats,r.faults?h('div',{class:'faultnote'},h('span',{class:'label'},'Injected faults '),r.faults):null),
+    h('div',{class:'sum-side'},stats,h('div',{class:'acts'},edit,cp)));
+}
+
+/* configuration: final view with provenance gutter + inspector, or a diff against the draft */
+function configView(r,card){
+  const st={view:'final',wrap:false,secret:''},kb=r.kb||{};
+  const fin=new Map(),dr=new Map(),byN=new Map(r.lines.map(l=>[l.n,l]));
+  r.issues.forEach(i=>i.line&&fin.set(i.line,[...(fin.get(i.line)||[]),i]));
+  r.draft_issues.forEach(i=>i.line&&dr.set(i.line,[...(dr.get(i.line)||[]),i]));
+  const changes=r.diff.filter(d=>d.op!==' ').length;
+  const worst=xs=>xs.some(i=>i.severity==='ERROR')?'err':xs.some(i=>i.severity==='WARN')?'warn':'info';
+  const scroll=h('div',{class:'scroll'}),insp=h('div',{class:'inspector','aria-live':'polite'});
+  let pinned=null;
+  const idle=()=>{insp.replaceChildren(h('div',{class:'muted'},'Hover a line to see what it does and which reference grounds it. Click to pin.'))};
+  function inspect(rec){
+    if(!rec){pinned?inspect(pinned):idle();return}
+    const l=rec.n?byN.get(rec.n):null,src=l?l.src:'',iss=rec.issues||[];
+    insp.replaceChildren(
+      h('div',{class:'top'},h('span',{class:'tag'},rec.label),src?h('span',{class:'tag acc',title:kb[src]||''},src+(kb[src]?' · '+kb[src]:'')):null,rec.note?h('span',{class:'badge'+(rec.note==='added by repair'?' ok':'')},rec.note):null),
+      h('div',{class:'why'},(l&&l.why)||(rec.text.trim().startsWith('!')||!rec.text.trim()?'Separator / comment.':'No explanation in the knowledge base for this command.')),
+      iss.map(i=>h('div',{class:'muted'},icon(sevOf(i)),' ',h('code',null,i.code),' ',i.message,i.hint?' — '+i.hint:'')));
+  }
+  function row(rec,cls,cols){
+    const e=h('div',{class:'ln '+cls},cols);
+    e.onmouseenter=()=>inspect(rec);e.onmouseleave=()=>inspect(null);
+    e.pin=()=>{scroll.querySelector('.sel')?.classList.remove('sel');pinned=rec;e.classList.add('sel');inspect(rec)};
+    e.onclick=()=>{if(pinned===rec){e.classList.remove('sel');pinned=null;inspect(rec)}else e.pin()};
+    return e;
+  }
+  const kind=t=>!t.trim()||t.trim().startsWith('!')?' cm':/^\S/.test(t)?' hd':'';
+  function drawFinal(){
+    scroll.replaceChildren(...r.lines.map(l=>{const iss=fin.get(l.n)||[];
+      const e=row({n:l.n,text:l.text,label:'line '+l.n,issues:iss},kind(l.text)+(iss.length?' i-'+worst(iss):''),[h('span',{class:'no'},l.n),h('span',{class:'src',title:kb[l.src]||''},l.src.replace('KB-','')),h('span',{class:'tx'},hl(l.text))]);
+      e.dataset.b=l.n;return e}));
+  }
+  function drawDiff(){
+    const d=r.diff,keep=d.map(()=>false);
+    d.forEach((x,i)=>{if(x.op!==' ')for(let k=Math.max(0,i-3);k<=Math.min(d.length-1,i+3);k++)keep[k]=true});
+    const mk=x=>{const iss=x.a?dr.get(x.a)||[]:[];const note=x.op==='+'?'added by repair':x.op==='-'?'removed by repair':null;
+      const e=row({n:x.b,text:x.text,label:x.op==='+'?'new line '+x.b:x.op==='-'?'draft line '+x.a:'line '+x.b,issues:iss,note},'d'+kind(x.text)+(x.op==='+'?' add':x.op==='-'?' del':'')+(iss.length&&x.op!=='+'?' i-'+worst(iss):''),
+        [h('span',{class:'no'},x.a??''),h('span',{class:'no'},x.b??''),h('span',{class:'mk'},x.op==='+'?'+':x.op==='-'?'−':''),h('span',{class:'tx'},hl(x.text))]);
+      if(x.a)e.dataset.a=x.a;if(x.b)e.dataset.b=x.b;return e};
+    const out=[];let i=0;
+    while(i<d.length){if(keep[i]){out.push(mk(d[i]));i++;continue}let j=i;while(j<d.length&&!keep[j])j++;const hid=d.slice(i,j);
+      const f=h('button',{type:'button',class:'fold'},'⋯ '+plural(hid.length,'unchanged line'));f.onclick=()=>f.replaceWith(...hid.map(mk));out.push(f);i=j}
+    scroll.replaceChildren(...out);
+  }
+  const draw=()=>{pinned=null;idle();st.view==='diff'?drawDiff():drawFinal()};
+  const exportText=()=>{let t=r.config;if(st.secret)t=t.replaceAll('CHANGE_ME_Str0ng',st.secret);
+    if(st.wrap){t=t.split('\n').filter(l=>!/^(Building configuration|Current configuration|end\s*$)/.test(l)).join('\n').replace(/\n*$/,'\n');t='enable\nconfigure terminal\n'+t+'end\nwrite memory\n'}return t};
+  const segBtns=[['final','Final config'],['diff','Changes ('+changes+')']].map(([v,l])=>{const b=h('button',{type:'button','aria-pressed':v==='final','data-v':v},l);b.onclick=()=>{st.view=v;segBtns.forEach(x=>x.setAttribute('aria-pressed',x===b));draw()};return b});
+  const cp=btn('copy','Copy',()=>copyText(exportText(),cp));
+  const tools=h('div',{class:'toolbar'},
+    changes?h('div',{class:'seg',role:'group','aria-label':'View'},segBtns):h('span',{class:'tag'},'no repairs needed'),
+    h('label',{class:'check',title:'Adds enable / configure terminal before and end / write memory after the config'},h('input',{type:'checkbox',onchange:e=>st.wrap=e.target.checked}),' Console-paste wrapper'),
+    r.config.includes('CHANGE_ME_Str0ng')?h('label',{class:'secret',title:'Replaces the CHANGE_ME_Str0ng placeholder in copies and downloads only; nothing is sent to the server'},'secret',h('input',{type:'password',placeholder:'replace placeholder',oninput:e=>st.secret=e.target.value})):null,
+    h('span',{class:'spacer'}),cp,downloadMenu(r,exportText));
+  card.cfg={exportText,focus(line,view){
+    if(view&&view!==st.view&&changes){st.view=view;segBtns.forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===view));draw()}
+    const attr=st.view==='diff'&&view==='diff'?'a':'b';
+    let el=scroll.querySelector(`[data-${attr}="${line}"]`);
+    if(!el&&st.view==='diff'){scroll.querySelectorAll('.fold').forEach(f=>f.click());el=scroll.querySelector(`[data-${attr}="${line}"]`)}
+    if(el){el.scrollIntoView({block:'center'});el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash');el.pin()}
+  }};
+  draw();
+  return h('div',null,tools,h('div',{class:'code'},scroll,insp));
+}
+function downloadMenu(r,exportText){
+  const m=h('details',{class:'menu'});
+  const it=(label,ext,fn)=>h('button',{type:'button',onclick:()=>{fn();m.open=false}},label,h('small',null,ext));
+  const base=(r.topology.hostname||'config').toLowerCase();
+  m.append(h('summary',{class:'ghost'},icon('down','muted'),h('span',null,'Download')),h('div',{class:'items'},
+    it('Configuration','.txt',()=>download(base+'.txt',exportText())),
+    it('Explained commands','.md',()=>download(base+'-explained.md',explainedMd(r),'text/markdown')),
+    it('Verification plan','.md',()=>download(base+'-verify.md',verifyMd(r),'text/markdown')),
+    it('Full report','.json',()=>download(base+'-report.json',JSON.stringify(r,null,2),'application/json'))));
+  document.addEventListener('click',e=>{if(!m.contains(e.target))m.open=false});
+  return m;
+}
+const explainedMd=r=>`# Explained configuration\n\nRequest: ${r.request}\n\n| Line | Command | Explanation | Source |\n|---|---|---|---|\n`+r.explanations.map(x=>`| ${x.n} | \`${x.cmd}\` | ${x.text} | ${x.source} ${x.source_title} |`).join('\n')+'\n';
+const verifyMd=r=>`# Verification plan\n\nRequest: ${r.request}\n\n`+[['device','On the device'],['client','From client PCs']].map(([k,t])=>`## ${t}\n\n`+r.verify.filter(x=>x.kind===k).map(x=>`- [ ] \`${x.cmd}\` - ${x.expect}`).join('\n')).join('\n\n')+'\n';
+
+/* topology diagram drawn from the final config */
+function topoView(r){
+  const t=r.topology,segs=t.segments;
+  if(!segs.length&&!t.uplink)return h('div',{class:'emptyp'},'No routed interfaces with IPv4 addresses were found, so there is nothing to draw yet.');
+  const CW=186,GAP=16,v6=segs.some(x=>x.v6),CH=v6?124:108,n=Math.max(1,segs.length),W=Math.max(700,n*(CW+GAP)+GAP+24),cx=W/2;
+  const g=s('svg',{class:'topo',width:W,viewBox:'0 0 '+W+' 100',role:'img','aria-label':'Topology of '+t.hostname});
+  const text=(x,y,str,cls,anchor)=>s('text',{x,y,class:cls,'text-anchor':anchor||'start'},str);
+  const badge=(x,y,str,acc)=>{const w=str.length*6.6+12;g.append(s('rect',{x,y:y-11,width:w,height:16,rx:4,class:'bdg'+(acc?' acc':'')}),text(x+6,y+1,str,acc?'t-acc':'t-faint'));return w};
+  let y=14;
+  const wire=(x1,y1,x2,y2,acc)=>g.append(s('line',{x1,y1,x2,y2,class:'wire'+(acc?' acc':'')}));
+  if(t.uplink){
+    const u=t.uplink,title=u.nat?'ISP / Internet':'Upstream router',sub=u.peer?'next hop '+u.peer:u.ospf?'OSPF neighbour':'peer';
+    g.append(s('rect',{x:cx-130,y,width:260,height:50,rx:25,class:'cloud'}),text(cx,y+21,title,'t-strong','middle'),text(cx,y+38,sub,'t-faint','middle'));
+    y+=50;wire(cx,y,cx,y+62,true);
+    const tags=[u.nat&&'NAT outside',u.qos&&('QoS '+u.qos),u.ospf&&'OSPF'].filter(Boolean);
+    g.append(text(cx+12,y+24,shortIf(u.if)+'  '+u.ip),text(cx+12,y+42,tags.join(' · ')||'uplink','t-faint'));
+    if(u.v6)g.append(text(cx-12,y+33,u.v6,'t-faint','end'));
+    y+=62;
+  }
+  const role=t.device==='l3switch'?'Layer-3 switch · SVI gateways':'Router · '+(t.trunk?'router-on-a-stick':'routed ports');
+  g.append(s('rect',{x:cx-130,y,width:260,height:58,rx:10,class:'dev'}),text(cx,y+25,t.hostname,'t-strong','middle'),text(cx,y+44,role,'t-faint','middle'));
+  y+=58;
+  if(t.trunk){
+    wire(cx,y,cx,y+50,true);g.append(text(cx+12,y+30,shortIf(t.trunk)+' · 802.1Q trunk','t-acc'));y+=50;
+    const ids=segs.filter(x=>x.vlan).map(x=>x.vlan).join(', ');
+    g.append(s('rect',{x:cx-110,y,width:220,height:42,rx:8,class:'box'}),text(cx,y+18,'Access switch','t-strong','middle'),text(cx,y+34,'VLANs '+trunc(ids,26),'t-faint','middle'));
+    y+=42;
+  }
+  if(segs.length){
+    const left=(W-(segs.length*CW+(segs.length-1)*GAP))/2,cxs=segs.map((_,i)=>left+i*(CW+GAP)+CW/2),bus=y+26,top=bus+22;
+    wire(cx,y,cx,bus);if(segs.length>1)wire(Math.min(...cxs,cx),bus,Math.max(...cxs,cx),bus);
+    segs.forEach((sg,i)=>{
+      const x=left+i*(CW+GAP);wire(cxs[i],bus,cxs[i],top);
+      g.append(s('rect',{x,y:top,width:CW,height:CH,rx:10,class:'box'}),
+        text(x+12,top+18,sg.vlan?'VLAN '+sg.vlan:'routed port','t-faint'),text(x+CW-12,top+18,shortIf(sg.if),'t-faint','end'),
+        text(x+12,top+38,trunc(sg.name,20),'t-strong'),text(x+12,top+57,sg.net),text(x+12,top+74,'gw '+sg.gw,'t-faint'));
+      if(sg.v6)g.append(text(x+12,top+91,trunc(sg.v6,24),'t-faint'));
+      let bx=x+12;const by=top+CH-14;
+      [[sg.dhcp&&'DHCP'],[sg.ospf&&'OSPF'],[sg.acl&&'ACL in',1]].forEach(([lab,acc])=>{if(lab)bx+=badge(bx,by,lab,acc)+6});
+      g.append(s('rect',{x,y:top,width:CW,height:CH,rx:10,fill:'transparent'},s('title',null,[sg.if,sg.net,'gateway '+sg.gw,sg.v6,sg.dhcp&&'DHCP pool served here',sg.acl&&'inbound ACL '+sg.acl].filter(Boolean).join('\n'))));
+    });
+    y=top+CH;
+  }
+  g.setAttribute('viewBox','0 0 '+W+' '+(y+16));g.setAttribute('height',y+16);
+  return h('div',null,h('div',{class:'topo-wrap'},g),h('div',{class:'caption'},'Drawn from the final configuration: interfaces, addresses, DHCP pools, ACL bindings, OSPF coverage and the default route. Copper links are the uplink and the 802.1Q trunk.'));
+}
+
+function explainView(r,card){
+  const tb=h('tbody');
+  const rows=r.explanations.map(x=>{const tr=h('tr',null,h('td',{class:'num'},h('button',{type:'button',class:'lnk',onclick:()=>card.go('config',{line:x.n,view:'final'})},x.n)),h('td',null,h('code',null,x.cmd)),h('td',null,x.text),h('td',null,h('span',{class:'src-pill',title:x.source_title},x.source)));tr._k=(x.cmd+' '+x.text+' '+x.source).toLowerCase();return tr});
+  tb.append(...rows);
+  const cnt=h('span',{class:'muted',style:'font-size:12.5px'},plural(rows.length,'command'));
+  const f=h('label',{class:'filter'},icon('search','muted'),h('input',{type:'search',placeholder:'Filter commands, explanations or sources…',oninput:e=>{const v=e.target.value.toLowerCase().trim();let k=0;rows.forEach(tr=>{const on=!v||tr._k.includes(v);tr.hidden=!on;k+=on});cnt.textContent=plural(k,'command')}}));
+  return h('div',null,h('div',{class:'toolbar'},f,cnt),h('table',null,h('thead',null,h('tr',null,h('th',null,'Line'),h('th',null,'Command'),h('th',null,'What it does'),h('th',null,'Grounded in'))),tb));
+}
+
+function issueRow(i,card,view,resolved){
+  const k=sevOf(i);
+  return h('div',{class:'issue'+(resolved?' resolved':'')},icon(resolved?'ok':k,resolved?'ok':k),
+    h('div',{class:'msg'},h('b',{class:resolved?'ok':k},resolved?'Fixed':SEVL[k]),h('code',null,i.code),i.message),
+    h('div',{style:'display:flex;gap:6px;align-items:center'},i.fixable&&!resolved?h('span',{class:'badge'},'auto-fix'):null,i.line?h('button',{type:'button',class:'lnk',onclick:()=>card.go('config',{line:i.line,view})},'L'+i.line):null),
+    i.hint&&!resolved?h('div',{class:'fix'},i.hint):null);
+}
+function validView(r,card){
+  const d=h('div');
+  d.append(h('div',{class:'catgrid'},r.checks.map(c=>{const k=c.errors?'err':c.warnings?'warn':'ok',was=c.draft_errors+c.draft_warnings;
+    return h('div',{class:'catcell'},h('div',{class:'h'},icon(k),c.label),h('div',{class:'c'},k==='ok'?'passes':[c.errors&&plural(c.errors,'error'),c.warnings&&plural(c.warnings,'warning')].filter(Boolean).join(', ')),was&&r.history.length>1?h('div',{class:'c'},'draft: '+plural(was,'finding')):null)})));
+  const live=r.issues.filter(i=>i.severity!=='INFO'),infos=r.issues.filter(i=>i.severity==='INFO');
+  d.append(h('h4',null,'Remaining'));
+  if(!live.length)d.append(h('div',{class:'issue good'},icon('ok'),h('div',{class:'msg'},'No errors or warnings remain. The configuration passes every check.')));
+  live.forEach(i=>d.append(issueRow(i,card,'final')));
+  const key=i=>i.code+'|'+i.message,still=new Set(r.issues.map(key)),fixed=r.draft_issues.filter(i=>i.severity!=='INFO'&&!still.has(key(i)));
+  if(fixed.length){d.append(h('h4',null,(r.mode==='audit'?'Found in the original':'Found in the first draft')+' · '+fixed.length+' fixed'));fixed.forEach(i=>d.append(issueRow(i,card,'diff',true)))}
+  if(r.repairs.length){
+    d.append(h('h4',null,'Repairs applied'));
+    d.append(h('div',{class:'repairs'},r.repairs.map(x=>h('div',{class:'repair'},h('span',{class:'p'},'pass '+x.pass),h('code',null,x.code),h('span',null,x.action)))));
+  }
+  if(infos.length)d.append(h('details',{class:'more'},h('summary',null,plural(infos.length,'command')+' outside the validator grammar (not checked)'),infos.map(i=>issueRow(i,card,'final'))));
+  d.append(h('p',{class:'caption'},'Score = 100 − 12 per error − 4 per warning. Checks: CLI syntax by mode, addressing and subnet overlap, inter-VLAN routing, DHCP/gateway consistency, OSPF coverage and passive LANs, ACL/NAT/QoS reference integrity, IPv6 prerequisites, and a security baseline (SSH-only VTYs, secrets, brute-force blocking, SNMP communities, timeouts).'));
+  return d;
+}
+
+function verifyView(r){
+  const items=r.verify,done=new Set(),fill=h('div',{class:'fillbar',style:'width:0%'}),lbl=h('span',{class:'muted',style:'font-size:13px'});
+  const upd=()=>{fill.style.width=(items.length?100*done.size/items.length:0)+'%';lbl.textContent=done.size+' of '+items.length+' verified'};
+  const item=x=>{const cb=h('input',{type:'checkbox'}),row=h('label',{class:'vitem'},cb,h('code',null,x.cmd),h('span',null,x.expect));cb.onchange=()=>{cb.checked?done.add(x):done.delete(x);row.classList.toggle('done',cb.checked);upd()};return row};
+  const dev=items.filter(x=>x.kind==='device'),pc=items.filter(x=>x.kind==='client');
+  const cp=btn('copy','Copy show commands',()=>copyText(dev.map(x=>x.cmd).join('\n')+'\n',cp));
+  upd();
+  return h('div',null,h('div',{class:'meter'},h('div',{class:'track',role:'progressbar','aria-label':'Verification progress'},fill),lbl,h('span',{class:'spacer'}),cp),
+    h('div',{class:'vgrid'},h('div',null,h('h4',null,'On the device'),dev.map(item)),h('div',null,h('h4',null,'From client PCs'),pc.length?pc.map(item):h('div',{class:'muted'},'No client tests for this config.'))),
+    h('p',{class:'caption'},'Paste the config into Packet Tracer, GNS3 or CML, then tick each check as it passes. Download the checklist as Markdown from the Configuration tab.'));
+}
+
+function sourcesView(r){
+  const it=r.intent,left=h('div'),right=h('div'),side=h('div');
+  if(it){
+    left.append(h('h4',null,'Detected intent'),h('div',{class:'feat',style:'display:flex;flex-wrap:wrap;gap:6px'},
+      h('span',{class:'tag on'},it.device==='router'?'Router (router-on-a-stick)':'Layer-3 switch'),h('span',{class:'tag on'},'hostname '+it.hostname),
+      [['dhcp','DHCP'],['ospf','OSPF area '+it.ospf_area],['acl','ACL'],['nat','NAT'],['qos','QoS'],['ipv6','IPv6'],['ntp','NTP'],['syslog','Syslog']].map(([k,l])=>h('span',{class:'tag '+(it[k]?'acc':'off')},it[k]?l:l.split(' ')[0])),
+      it.dhcp?h('span',{class:'tag'},'DNS '+it.dns.join(' ')):null));
+    if(it.vlans.length){
+      left.append(h('h4',null,'Addressing plan · '+(it.vlsm?'VLSM':'VLAN id → third octet')+' · '+it.base));
+      const tb=h('tbody',null,it.vlans.map(v=>h('tr',null,h('td',{class:'num'},v.id),h('td',null,v.name),h('td',{class:'num'},v.net),h('td',{class:'num'},v.gw),h('td',{class:'num'},it.dhcp?v.pool:'—'),h('td',{class:'num',title:'requested hosts / DHCP-leasable addresses'},(v.hosts||'—')+' / '+v.capacity))));
+      if(it.wan)tb.append(h('tr',null,h('td',{class:'num'},'—'),h('td',null,'Uplink'),h('td',{class:'num'},it.wan.net),h('td',{class:'num'},it.wan.ip),h('td',{class:'num'},'peer '+it.wan.peer),h('td',{class:'num'},'—')));
+      left.append(h('div',{class:'tablewrap'},h('table',null,h('thead',null,h('tr',null,h('th',null,'VLAN'),h('th',null,'Name'),h('th',null,'Subnet'),h('th',null,'Gateway'),h('th',null,'DHCP range'),h('th',{title:'requested hosts / DHCP-leasable addresses'},'Hosts / capacity'))),tb)));
+    }
+    if(it.notes.length)left.append(h('h4',null,'Notes'),h('ul',{class:'notes'},it.notes.map(n=>h('li',null,n))));
+  }else{
+    const f=r.features;
+    left.append(h('h4',null,'Detected in the config'),h('div',{style:'display:flex;flex-wrap:wrap;gap:6px'},[['switch','Layer-3 switching'],['dhcp','DHCP server'],['ospf','OSPFv2'],['ospf6','OSPFv3'],['acl','Interface ACLs'],['nat','NAT/PAT'],['qos','QoS policy'],['ipv6','IPv6'],['ntp','NTP'],['syslog','Remote syslog'],['ssh','SSHv2'],['login_block','Login blocking']].map(([k,l])=>h('span',{class:'tag '+(f[k]?'acc':'off')},l))));
+    if(r.topology.segments.length){
+      left.append(h('h4',null,'Interfaces'));
+      left.append(h('div',{class:'tablewrap'},h('table',null,h('thead',null,h('tr',null,h('th',null,'Interface'),h('th',null,'Segment'),h('th',null,'Subnet'),h('th',null,'Address'))),h('tbody',null,r.topology.segments.map(x=>h('tr',null,h('td',{class:'num'},shortIf(x.if)),h('td',null,x.name),h('td',{class:'num'},x.net),h('td',{class:'num'},x.gw)))))));
+    }
+  }
+  right.append(h('h4',null,'Retrieved knowledge (RAG)'));
+  const top=Math.max(...r.retrieved.map(x=>x.score),.001);
+  r.retrieved.forEach(x=>right.append(h('div',{class:'kbrow',title:x.id+' — TF-IDF cosine '+x.score},h('span',{class:'id'},x.id),h('span',{class:'tt'},x.title),h('span',{class:'rel'},h('i',{style:'width:'+(100*x.score/top).toFixed(1)+'%'})),h('span',{class:'v'},x.score.toFixed(3)))));
+  right.append(h('p',{class:'caption'},'Bars are TF-IDF cosine similarity, scaled to the best match.'));
+  side.append(h('h4',null,'Pipeline trace'),h('div',{class:'trace'},r.trace.map(x=>h('span',{class:'tag'},x.stage+' '+x.ms.toFixed(2)+' ms'))));
+  return h('div',null,left,h('div',{class:'cols'},right,side));
+}
+
+/* ---------- history ---------- */
+function loadHist(){try{return JSON.parse(localStorage.getItem('netcfg.history.v2'))||[]}catch{return[]}}
+function persist(){while(true){try{localStorage.setItem('netcfg.history.v2',JSON.stringify(state.hist));return}catch{if(!state.hist.length)return;state.hist.pop()}}}
+function addHist(r,payload){state.hist.unshift({ts:Date.now(),mode:r.mode,title:r.mode==='audit'?r.request:payload.request,score:r.score,payload,r});state.hist=state.hist.slice(0,15);persist();drawHist()}
+function drawHist(){
+  const ol=$('#hist');ol.replaceChildren();
+  if(!state.hist.length){ol.append(h('li',{class:'empty-hist'},'Results you generate or audit appear here.'));return}
+  state.hist.forEach(x=>{const lv=level(x.score);ol.append(h('li',null,h('button',{type:'button',onclick:()=>{$('#welcome')?.remove();feed.append(userBubble(x.mode,x.payload));const c=render(x.r,x.payload);feed.append(c);c.scrollIntoView({block:'start'});c.classList.add('flash');document.body.classList.remove('side-open')}},
+    h('span',{class:'sc '+lv},icon(lv),x.score),h('span',{class:'t'},x.title),h('span',{class:'m'},(x.mode==='audit'?'audit':'generate')+' · '+ago(x.ts)))))});
+}
+function toggleOpts(on){const o=$('#opts'),b=$('#optBtn');on=on??!o.classList.contains('open');o.classList.toggle('open',on);b.setAttribute('aria-pressed',on)}
+
+/* ---------- wiring ---------- */
+$('#f').onsubmit=e=>{e.preventDefault();submit()};
+q.addEventListener('input',autosize);
+q.addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey||(state.mode==='generate'&&!e.shiftKey))){e.preventDefault();submit()}});
+document.querySelectorAll('.seg [data-mode]').forEach(b=>b.onclick=()=>{setMode(b.dataset.mode);q.focus()});
+$('#optBtn').onclick=()=>toggleOpts();
+$('#sampleBtn').onclick=loadSample;
+$('#fileBtn').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{readFile(e.target.files[0]);e.target.value=''};
+const box=$('#box');
+box.addEventListener('dragover',e=>{e.preventDefault();box.classList.add('drop')});
+box.addEventListener('dragleave',()=>box.classList.remove('drop'));
+box.addEventListener('drop',e=>{e.preventDefault();box.classList.remove('drop');readFile(e.dataTransfer.files[0])});
+$('#themeBtn').onclick=()=>{const t=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=t;localStorage.setItem('netcfg.theme',t)};
+$('#sideBtn').onclick=()=>document.body.classList.toggle('side-open');
+$('#clearHist').onclick=()=>{state.hist=[];persist();drawHist()};
+document.addEventListener('keydown',e=>{
+  const typing=/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if(e.key==='/'&&!typing){e.preventDefault();q.focus()}
+  if(e.key==='Escape'){toggleOpts(false);document.body.classList.remove('side-open')}
+});
+fetch('/api/health').then(r=>r.json()).then(x=>{const p=$('#backend');p.classList.toggle('live',x.llm);p.lastChild.textContent=x.llm?'LLM · '+x.model:'offline rule parser';p.title=x.llm?'Intent extracted by the configured LLM endpoint':'No LLM_BASE_URL set: deterministic rule-based intent parser'}).catch(()=>{$('#backend').lastChild.textContent='server offline'});
+feed.append(welcome());setMode('generate');drawHist();q.focus();
+</script>
+</body>
+</html>
